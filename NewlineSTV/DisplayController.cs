@@ -143,7 +143,7 @@ namespace NewLineSTV
 
                 int payloadLength = _rxBuffer[1];
 
-                // Payload Length Sanity Check (prevents noise lockups)
+                // Payload Length Sanity Check
                 if (payloadLength < 4 || payloadLength > 32)
                 {
                     _rxBuffer.RemoveAt(0);
@@ -202,9 +202,11 @@ namespace NewLineSTV
                 {
                     byte val = msg[10];
                     ushort inVal = 0;
-                    if (val == 0x19) inVal = 1;
-                    else if (val == 0x1F) inVal = 2;
-                    else if (val == 0x1E) inVal = 3;
+
+                    // FIXED: Catching both the documented query return and the echoed command byte
+                    if (val == 0x19 || val == 0x0A) inVal = 1;
+                    else if (val == 0x1F || val == 0x52) inVal = 2;
+                    else if (val == 0x1E || val == 0x53) inVal = 3;
 
                     if (inVal > 0)
                     {
@@ -232,7 +234,6 @@ namespace NewLineSTV
                 // --- PROCESS MUTE ---
                 else if (cmdCategory == 0x01 && cmdByte == 0x82 && msg.Length >= 12)
                 {
-                    // muted = 0x01, unmuted = 0x00
                     ushort isMuted = (msg[10] == 0x01) ? (ushort)1 : (ushort)0;
                     safeInvoke += () => OnMuteChange?.Invoke(isMuted);
 
@@ -268,7 +269,6 @@ namespace NewLineSTV
                 lock (_queueLock) { ClearActiveCommand(); }
             }
 
-            // Safe delegate invocation protects the C# thread from SIMPL+ crashes
             try { safeInvoke?.Invoke(); }
             catch (Exception ex) { ErrorLog.Error("NewlineSTV SIMPL+ Callback Error: " + ex.Message); }
 
@@ -281,8 +281,6 @@ namespace NewLineSTV
         public void PollPower() { EnqueueCommand(new byte[] { 0x7F, 0x08, 0x99, 0xA2, 0xB3, 0xC4, 0x02, 0xFF, 0x01, 0x37, 0xCF }, 10, 0, true); }
         public void PollInput() { EnqueueCommand(new byte[] { 0x7F, 0x08, 0x99, 0xA2, 0xB3, 0xC4, 0x02, 0xFF, 0x01, 0x50, 0xCF }, 11, 0, true); }
         public void PollVolume() { EnqueueCommand(new byte[] { 0x7F, 0x08, 0x99, 0xA2, 0xB3, 0xC4, 0x02, 0xFF, 0x01, 0x33, 0xCF }, 12, 0, true); }
-
-        // NEW: Added explicit Poll Mute method
         public void PollMute() { EnqueueCommand(new byte[] { 0x7F, 0x08, 0x99, 0xA2, 0xB3, 0xC4, 0x02, 0xFF, 0x01, 0x82, 0xCF }, 13, 0, true); }
 
         public void PowerOn() { EnqueueCommand(new byte[] { 0x7F, 0x08, 0x99, 0xA2, 0xB3, 0xC4, 0x02, 0xFF, 0x01, 0x00, 0xCF }, 1, 1, true); }
@@ -301,30 +299,26 @@ namespace NewLineSTV
             byte v = (byte)(volVal > 100 ? 100 : volVal);
             EnqueueCommand(new byte[] { 0x7F, 0x08, 0x99, 0xA2, 0xB3, 0xC4, 0x02, 0xFF, 0x05, v, 0xCF }, 3, volVal, false);
 
-            // Optimistic Feedback
             OnVolumeChange?.Invoke(v);
         }
 
         public void SetMute(ushort muteState)
         {
-            // muted = 0x01, unmuted = 0x00
             byte m = muteState > 0 ? (byte)0x01 : (byte)0x00;
 
             EnqueueCommand(
-                new byte[] { 0x7F, 0x08, 0x99, 0xA2, 0xB3, 0xC4, 0x02, 0xFF, 0x0F, m, 0xCF }, 4, muteState, false );
+                new byte[] { 0x7F, 0x08, 0x99, 0xA2, 0xB3, 0xC4, 0x02, 0xFF, 0x0F, m, 0xCF }, 4, muteState, false);
 
-            // Optimistic feedback
             ushort isMuted = (m == 0x01) ? (ushort)1 : (ushort)0;
             OnMuteChange?.Invoke(isMuted);
 
-            // Reconcile with actual device state
             PollMute();
         }
 
         public void ToggleMute()
         {
             EnqueueCommand(
-                new byte[] { 0x7F, 0x08, 0x99, 0xA2, 0xB3, 0xC4, 0x02, 0xFF, 0x01, 0x02, 0xCF }, 4, 0, false );
+                new byte[] { 0x7F, 0x08, 0x99, 0xA2, 0xB3, 0xC4, 0x02, 0xFF, 0x01, 0x02, 0xCF }, 4, 0, false);
 
             PollMute();
         }

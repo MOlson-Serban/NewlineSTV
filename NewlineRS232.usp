@@ -9,38 +9,28 @@
 #USER_SIMPLSHARP_LIBRARY "NewLineSTV"
 
 // ----- Inputs -----
-DIGITAL_INPUT Power_On, Power_Off, Poll_Power, Poll_Volume, Poll_Mute, Poll_Input;
-DIGITAL_INPUT _skip_,_skip_,Volume_Up, Volume_Down, _skip_,_skip_,Mute_On, Mute_Off, Mute_Toggle;
+DIGITAL_INPUT Power_On, Power_Off, _skip_,_skip_,Poll_Power, Poll_Input, _skip_,_skip_,Set_Volume_100;
 DIGITAL_INPUT _skip_,_skip_,Input_Poll[3,3];
 
 STRING_INPUT  Rx$[1024];
 
 // ----- Outputs -----
-DIGITAL_OUTPUT Is_Power_On_fb, _skip_,_skip_,_skip_,_skip_,_skip_,_skip_,Is_Muted_fb;
-ANALOG_OUTPUT  Current_Volume_Out, _skip_,_skip_,_skip_,_skip_,Current_Input_fb;
-
+DIGITAL_OUTPUT Is_Power_On_fb;
+ANALOG_OUTPUT  Current_Input_fb, Current_Volume_Out;
 
 STRING_OUTPUT  Tx$;
 
 // ----- Global Variables -----
+// FIXED: Restored the NewLineSTV. namespace so the compiler can find the class
 DisplayController myDisplay; 
-INTEGER iCurrentVol, iCurrentMute;
 
 // ----- Callback Functions from C# -----
 CALLBACK FUNCTION OnPowerCallback(INTEGER state)  { Is_Power_On_fb = state; }
 CALLBACK FUNCTION OnInputCallback(INTEGER val)    { Current_Input_fb = val; }
+CALLBACK FUNCTION OnVolumeCallback(INTEGER val)   { Current_Volume_Out = val; }
 
-CALLBACK FUNCTION OnVolumeCallback(INTEGER val)   
-{ 
-    iCurrentVol = val;
-    Current_Volume_Out = val; 
-}
-
-CALLBACK FUNCTION OnMuteCallback(INTEGER state)   
-{ 
-    iCurrentMute = state;
-    Is_Muted_fb = state; 
-}
+// We no longer track the Mute callback locally, but the delegate still needs to catch the data so it doesn't crash
+CALLBACK FUNCTION OnMuteCallback(INTEGER state)   { }
 
 CALLBACK FUNCTION OnTransmitSerial(STRING hexData)   
 { 
@@ -65,7 +55,6 @@ CHANGE Rx$
     FOR (i = 1 TO LEN(Rx$))
     {
         b = BYTE(Rx$, i);
-        // Ensure single-digit hex values are zero-padded
         IF (b < 16) 
         {
             hexStr$ = hexStr$ + "0" + ITOHEX(b);
@@ -82,9 +71,10 @@ CHANGE Rx$
 PUSH Power_On    { myDisplay.PowerOn(); }
 PUSH Power_Off   { myDisplay.PowerOff(); }
 PUSH Poll_Power  { myDisplay.PollPower(); }
-PUSH Poll_Volume { myDisplay.PollVolume(); }
-PUSH Poll_Mute   { myDisplay.PollMute(); } 
 PUSH Poll_Input  { myDisplay.PollInput(); }
+
+// New Volume Command
+PUSH Set_Volume_100 { myDisplay.SetVolume(100); }
 
 PUSH Input_Poll
 {
@@ -93,33 +83,11 @@ PUSH Input_Poll
     IF (i > 0 && i <= 3) { myDisplay.SetInput(i); }
 }
 
-PUSH Volume_Up   { IF (iCurrentVol < 100) { myDisplay.SetVolume(iCurrentVol + 1); } }
-PUSH Volume_Down { IF (iCurrentVol > 0)   { myDisplay.SetVolume(iCurrentVol - 1); } }
-
-// Poll true volume when user stops pressing the button
-RELEASE Volume_Up, Volume_Down
-{
-    myDisplay.PollVolume();
-    myDisplay.PollMute();
-}
-
-PUSH Mute_On     { myDisplay.SetMute(1); }
-PUSH Mute_Off    { myDisplay.SetMute(0); }
-PUSH Mute_Toggle { myDisplay.ToggleMute(); }
-
-RELEASE Mute_Toggle
-{
-	myDisplay.PollMute();
-}
-
 // ----- Initialization -----
 FUNCTION Main()
 {
     WaitForInitializationComplete();
 
-    iCurrentVol = 0;
-    iCurrentMute = 0;
-    
     RegisterDelegate(myDisplay, OnPowerChange, OnPowerCallback);
     RegisterDelegate(myDisplay, OnInputChange, OnInputCallback);
     RegisterDelegate(myDisplay, OnVolumeChange, OnVolumeCallback);
@@ -128,6 +96,4 @@ FUNCTION Main()
 
     myDisplay.PollPower();
     myDisplay.PollInput();
-    myDisplay.PollVolume();
-    myDisplay.PollMute();
 }
