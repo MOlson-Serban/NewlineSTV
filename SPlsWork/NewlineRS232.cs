@@ -24,6 +24,7 @@ namespace UserModule_NEWLINERS232
         Crestron.Logos.SplusObjects.DigitalInput POWER_OFF;
         Crestron.Logos.SplusObjects.DigitalInput POLL_POWER;
         Crestron.Logos.SplusObjects.DigitalInput POLL_INPUT;
+        Crestron.Logos.SplusObjects.DigitalInput POLL_VOLUME;
         Crestron.Logos.SplusObjects.DigitalInput SET_VOLUME_100;
         InOutArray<Crestron.Logos.SplusObjects.DigitalInput> INPUT_POLL;
         Crestron.Logos.SplusObjects.StringInput RX__DOLLAR__;
@@ -245,7 +246,7 @@ object POLL_INPUT_OnPush_4 ( Object __EventInfo__ )
     
 }
 
-object SET_VOLUME_100_OnPush_5 ( Object __EventInfo__ )
+object POLL_VOLUME_OnPush_5 ( Object __EventInfo__ )
 
     { 
     Crestron.Logos.SplusObjects.SignalEventArgs __SignalEventArg__ = (Crestron.Logos.SplusObjects.SignalEventArgs)__EventInfo__;
@@ -253,7 +254,26 @@ object SET_VOLUME_100_OnPush_5 ( Object __EventInfo__ )
     {
         SplusExecutionContext __context__ = SplusThreadStartCode(__SignalEventArg__);
         
-        __context__.SourceCodeLine = 77;
+        __context__.SourceCodeLine = 75;
+        MYDISPLAY . PollVolume ( ) ; 
+        
+        
+    }
+    catch(Exception e) { ObjectCatchHandler(e); }
+    finally { ObjectFinallyHandler( __SignalEventArg__ ); }
+    return this;
+    
+}
+
+object SET_VOLUME_100_OnPush_6 ( Object __EventInfo__ )
+
+    { 
+    Crestron.Logos.SplusObjects.SignalEventArgs __SignalEventArg__ = (Crestron.Logos.SplusObjects.SignalEventArgs)__EventInfo__;
+    try
+    {
+        SplusExecutionContext __context__ = SplusThreadStartCode(__SignalEventArg__);
+        
+        __context__.SourceCodeLine = 78;
         MYDISPLAY . SetVolume ( (ushort)( 100 )) ; 
         
         
@@ -264,7 +284,7 @@ object SET_VOLUME_100_OnPush_5 ( Object __EventInfo__ )
     
 }
 
-object INPUT_POLL_OnPush_6 ( Object __EventInfo__ )
+object INPUT_POLL_OnPush_7 ( Object __EventInfo__ )
 
     { 
     Crestron.Logos.SplusObjects.SignalEventArgs __SignalEventArg__ = (Crestron.Logos.SplusObjects.SignalEventArgs)__EventInfo__;
@@ -274,12 +294,12 @@ object INPUT_POLL_OnPush_6 ( Object __EventInfo__ )
         ushort I = 0;
         
         
-        __context__.SourceCodeLine = 82;
-        I = (ushort) ( Functions.GetLastModifiedArrayIndex( __SignalEventArg__ ) ) ; 
         __context__.SourceCodeLine = 83;
+        I = (ushort) ( Functions.GetLastModifiedArrayIndex( __SignalEventArg__ ) ) ; 
+        __context__.SourceCodeLine = 84;
         if ( Functions.TestForTrue  ( ( Functions.BoolToInt ( (Functions.TestForTrue ( Functions.BoolToInt ( I > 0 ) ) && Functions.TestForTrue ( Functions.BoolToInt ( I <= 3 ) )) ))  ) ) 
             { 
-            __context__.SourceCodeLine = 83;
+            __context__.SourceCodeLine = 84;
             MYDISPLAY . SetInput ( (ushort)( I )) ; 
             } 
         
@@ -298,27 +318,29 @@ public override object FunctionMain (  object __obj__ )
     {
         SplusExecutionContext __context__ = SplusFunctionMainStartCode();
         
-        __context__.SourceCodeLine = 89;
+        __context__.SourceCodeLine = 90;
         WaitForInitializationComplete ( ) ; 
-        __context__.SourceCodeLine = 91;
+        __context__.SourceCodeLine = 92;
         // RegisterDelegate( MYDISPLAY , ONPOWERCHANGE , ONPOWERCALLBACK ) 
         MYDISPLAY .OnPowerChange  = ONPOWERCALLBACK; ; 
-        __context__.SourceCodeLine = 92;
+        __context__.SourceCodeLine = 93;
         // RegisterDelegate( MYDISPLAY , ONINPUTCHANGE , ONINPUTCALLBACK ) 
         MYDISPLAY .OnInputChange  = ONINPUTCALLBACK; ; 
-        __context__.SourceCodeLine = 93;
+        __context__.SourceCodeLine = 94;
         // RegisterDelegate( MYDISPLAY , ONVOLUMECHANGE , ONVOLUMECALLBACK ) 
         MYDISPLAY .OnVolumeChange  = ONVOLUMECALLBACK; ; 
-        __context__.SourceCodeLine = 94;
+        __context__.SourceCodeLine = 95;
         // RegisterDelegate( MYDISPLAY , ONMUTECHANGE , ONMUTECALLBACK ) 
         MYDISPLAY .OnMuteChange  = ONMUTECALLBACK; ; 
-        __context__.SourceCodeLine = 95;
+        __context__.SourceCodeLine = 96;
         // RegisterDelegate( MYDISPLAY , TRANSMITSERIALDATA , ONTRANSMITSERIAL ) 
         MYDISPLAY .TransmitSerialData  = ONTRANSMITSERIAL; ; 
-        __context__.SourceCodeLine = 97;
-        MYDISPLAY . PollPower ( ) ; 
         __context__.SourceCodeLine = 98;
+        MYDISPLAY . PollPower ( ) ; 
+        __context__.SourceCodeLine = 99;
         MYDISPLAY . PollInput ( ) ; 
+        __context__.SourceCodeLine = 100;
+        MYDISPLAY . PollVolume ( ) ; 
         
         
     }
@@ -345,6 +367,9 @@ public override void LogosSplusInitialize()
     
     POLL_INPUT = new Crestron.Logos.SplusObjects.DigitalInput( POLL_INPUT__DigitalInput__, this );
     m_DigitalInputList.Add( POLL_INPUT__DigitalInput__, POLL_INPUT );
+    
+    POLL_VOLUME = new Crestron.Logos.SplusObjects.DigitalInput( POLL_VOLUME__DigitalInput__, this );
+    m_DigitalInputList.Add( POLL_VOLUME__DigitalInput__, POLL_VOLUME );
     
     SET_VOLUME_100 = new Crestron.Logos.SplusObjects.DigitalInput( SET_VOLUME_100__DigitalInput__, this );
     m_DigitalInputList.Add( SET_VOLUME_100__DigitalInput__, SET_VOLUME_100 );
@@ -377,9 +402,10 @@ public override void LogosSplusInitialize()
     POWER_OFF.OnDigitalPush.Add( new InputChangeHandlerWrapper( POWER_OFF_OnPush_2, false ) );
     POLL_POWER.OnDigitalPush.Add( new InputChangeHandlerWrapper( POLL_POWER_OnPush_3, false ) );
     POLL_INPUT.OnDigitalPush.Add( new InputChangeHandlerWrapper( POLL_INPUT_OnPush_4, false ) );
-    SET_VOLUME_100.OnDigitalPush.Add( new InputChangeHandlerWrapper( SET_VOLUME_100_OnPush_5, false ) );
+    POLL_VOLUME.OnDigitalPush.Add( new InputChangeHandlerWrapper( POLL_VOLUME_OnPush_5, false ) );
+    SET_VOLUME_100.OnDigitalPush.Add( new InputChangeHandlerWrapper( SET_VOLUME_100_OnPush_6, false ) );
     for( uint i = 0; i < 3; i++ )
-        INPUT_POLL[i+1].OnDigitalPush.Add( new InputChangeHandlerWrapper( INPUT_POLL_OnPush_6, false ) );
+        INPUT_POLL[i+1].OnDigitalPush.Add( new InputChangeHandlerWrapper( INPUT_POLL_OnPush_7, false ) );
         
     
     _SplusNVRAM.PopulateCustomAttributeList( true );
@@ -404,8 +430,9 @@ const uint POWER_ON__DigitalInput__ = 0;
 const uint POWER_OFF__DigitalInput__ = 1;
 const uint POLL_POWER__DigitalInput__ = 2;
 const uint POLL_INPUT__DigitalInput__ = 3;
-const uint SET_VOLUME_100__DigitalInput__ = 4;
-const uint INPUT_POLL__DigitalInput__ = 5;
+const uint POLL_VOLUME__DigitalInput__ = 4;
+const uint SET_VOLUME_100__DigitalInput__ = 5;
+const uint INPUT_POLL__DigitalInput__ = 6;
 const uint RX__DOLLAR____AnalogSerialInput__ = 0;
 const uint IS_POWER_ON_FB__DigitalOutput__ = 0;
 const uint CURRENT_INPUT_FB__AnalogSerialOutput__ = 0;

@@ -9,7 +9,7 @@
 #USER_SIMPLSHARP_LIBRARY "NewLineSTV"
 
 // ----- Inputs -----
-DIGITAL_INPUT Power_On, Power_Off, _skip_,_skip_,Poll_Power, Poll_Input, _skip_,_skip_,Set_Volume_100;
+DIGITAL_INPUT Power_On, Power_Off, _skip_,_skip_,Poll_Power, Poll_Input, Poll_Volume,_skip_,_skip_,Set_Volume_100;
 DIGITAL_INPUT _skip_,_skip_,Input_Poll[3,3];
 
 STRING_INPUT  Rx$[1024];
@@ -72,6 +72,7 @@ PUSH Power_On    { myDisplay.PowerOn(); }
 PUSH Power_Off   { myDisplay.PowerOff(); }
 PUSH Poll_Power  { myDisplay.PollPower(); }
 PUSH Poll_Input  { myDisplay.PollInput(); }
+PUSH Poll_Volume { myDisplay.PollVolume(); }
 
 // New Volume Command
 PUSH Set_Volume_100 { myDisplay.SetVolume(100); }
@@ -96,4 +97,5 @@ FUNCTION Main()
 
     myDisplay.PollPower();
     myDisplay.PollInput();
+    myDisplay.PollVolume();
 }

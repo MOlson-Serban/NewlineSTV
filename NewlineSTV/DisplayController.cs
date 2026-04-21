@@ -204,9 +204,9 @@ namespace NewLineSTV
                     ushort inVal = 0;
 
                     // FIXED: Catching both the documented query return and the echoed command byte
-                    if (val == 0x19 || val == 0x0A) inVal = 1;
-                    else if (val == 0x1F || val == 0x52) inVal = 2;
-                    else if (val == 0x1E || val == 0x53) inVal = 3;
+                    if (val == 0x19 || val == 0x0A || val == 0x01) inVal = 1;
+                    else if (val == 0x1F || val == 0x52 || val == 0x02) inVal = 2;
+                    else if (val == 0x1E || val == 0x53 || val == 0x03) inVal = 3;
 
                     if (inVal > 0)
                     {
