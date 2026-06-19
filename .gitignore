@@ -1,0 +1,20 @@
+# ---- Build output ----
+[Bb]in/
+[Oo]bj/
+*.clz
+*.lpz
+
+# ---- SIMPL+ / SIMPL# generated working files ----
+SPlsWork/
+
+# ---- NuGet packages ----
+[Pp]ackages/
+
+# ---- Visual Studio / IDE ----
+.vs/
+*.user
+*.suo
+
+# ---- OS noise ----
+Thumbs.db
+.DS_Store
