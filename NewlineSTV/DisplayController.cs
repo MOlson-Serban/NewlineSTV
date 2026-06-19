@@ -171,102 +171,111 @@ namespace NewLineSTV
         private void ProcessMessage(byte[] msg)
         {
             Action safeInvoke = null;
-            bool activeCmdHandled = false;
 
             if (msg.Length >= 11)
             {
                 byte cmdCategory = msg[8];
                 byte cmdByte = msg[9];
 
-                bool waitingForPowerAck = (_activeCmd != null && _activeCmd.CmdType == 1 && cmdCategory == 0x01);
-                bool waitingForInputAck = (_activeCmd != null && _activeCmd.CmdType == 2 && cmdCategory == 0x01);
-                bool waitingForVolumeAck = (_activeCmd != null && _activeCmd.CmdType == 3 && cmdCategory == 0x05);
-                bool waitingForMuteAck = (_activeCmd != null && _activeCmd.CmdType == 4 && (cmdCategory == 0x0F || cmdCategory == 0x01));
-
-                // --- PROCESS POWER ---
-                if (cmdCategory == 0x01 && cmdByte == 0x37 && msg.Length >= 12)
+                // Snapshot and evaluate the queue state under _queueLock. Without this,
+                // a concurrent timeout (QueueTimeoutCallback) or ProcessQueue can null
+                // out _activeCmd between the null-check and use, crashing the power/input
+                // ack paths (e.g. _activeCmd.PendingValue) with a NullReferenceException.
+                lock (_queueLock)
                 {
-                    byte val = msg[10];
-                    safeInvoke += () => OnPowerChange?.Invoke(val);
-                    if (_activeCmd != null && _activeCmd.CmdType == 10) activeCmdHandled = true;
-                }
-                else if (waitingForPowerAck && msg.Length >= 12 && msg[10] == 0x01)
-                {
-                    activeCmdHandled = true;
-                    ushort fbVal = _activeCmd.PendingValue;
-                    safeInvoke += () => OnPowerChange?.Invoke(fbVal);
-                }
+                    QueuedCmd active = _activeCmd;
+                    bool activeCmdHandled = false;
 
-                // --- PROCESS INPUT ---
-                else if (cmdCategory == 0x01 && cmdByte == 0x50 && msg.Length >= 12)
-                {
-                    byte val = msg[10];
-                    ushort inVal = 0;
+                    bool waitingForPowerAck = (active != null && active.CmdType == 1 && cmdCategory == 0x01);
+                    bool waitingForInputAck = (active != null && active.CmdType == 2 && cmdCategory == 0x01);
+                    bool waitingForVolumeAck = (active != null && active.CmdType == 3 && cmdCategory == 0x05);
+                    bool waitingForMuteAck = (active != null && active.CmdType == 4 && (cmdCategory == 0x0F || cmdCategory == 0x01));
 
-                    // FIXED: Catching both the documented query return and the echoed command byte
-                    if (val == 0x19 || val == 0x0A || val == 0x01) inVal = 1;
-                    else if (val == 0x1F || val == 0x52 || val == 0x02) inVal = 2;
-                    else if (val == 0x1E || val == 0x53 || val == 0x03) inVal = 3;
-
-                    if (inVal > 0)
+                    // --- PROCESS POWER ---
+                    if (cmdCategory == 0x01 && cmdByte == 0x37 && msg.Length >= 12)
                     {
-                        safeInvoke += () => OnInputChange?.Invoke(inVal);
+                        byte val = msg[10];
+                        safeInvoke += () => OnPowerChange?.Invoke(val);
+                        if (active != null && active.CmdType == 10) activeCmdHandled = true;
                     }
-                    if (_activeCmd != null && _activeCmd.CmdType == 11) activeCmdHandled = true;
-                }
-                else if (waitingForInputAck && msg.Length >= 12 && msg[10] == 0x01)
-                {
-                    activeCmdHandled = true;
-                    ushort fbVal = _activeCmd.PendingValue;
-                    safeInvoke += () => OnInputChange?.Invoke(fbVal);
-                }
-
-                // --- PROCESS VOLUME ---
-                else if ((cmdCategory == 0x01 && cmdByte == 0x33 && msg.Length >= 12) ||
-                         (cmdCategory == 0x05 && msg.Length >= 12 && msg[10] == 0x01))
-                {
-                    byte val = (cmdCategory == 0x05) ? msg[9] : msg[10];
-                    safeInvoke += () => OnVolumeChange?.Invoke(val);
-
-                    if (_activeCmd != null && (_activeCmd.CmdType == 12 || _activeCmd.CmdType == 3)) activeCmdHandled = true;
-                }
-
-                // --- PROCESS MUTE ---
-                else if (cmdCategory == 0x01 && cmdByte == 0x82 && msg.Length >= 12)
-                {
-                    ushort isMuted = (msg[10] == 0x01) ? (ushort)1 : (ushort)0;
-                    safeInvoke += () => OnMuteChange?.Invoke(isMuted);
-
-                    if (_activeCmd != null && (_activeCmd.CmdType == 13 || _activeCmd.CmdType == 4))
-                        activeCmdHandled = true;
-                }
-                else if (waitingForMuteAck && msg.Length >= 12)
-                {
-                    activeCmdHandled = true;
-
-                    if (_activeCmd != null && _activeCmd.CmdType == 4)
+                    else if (waitingForPowerAck && msg.Length >= 12 && msg[10] == 0x01)
                     {
-                        ushort isMuted = (_activeCmd.CommandBytes[9] == 0x01) ? (ushort)1 : (ushort)0;
+                        activeCmdHandled = true;
+                        ushort fbVal = active.PendingValue;
+                        safeInvoke += () => OnPowerChange?.Invoke(fbVal);
+                    }
+
+                    // --- PROCESS INPUT ---
+                    else if (cmdCategory == 0x01 && cmdByte == 0x50 && msg.Length >= 12)
+                    {
+                        byte val = msg[10];
+                        ushort inVal = 0;
+
+                        // Catching both the documented query return and the echoed command byte
+                        if (val == 0x19 || val == 0x0A || val == 0x01) inVal = 1;
+                        else if (val == 0x1F || val == 0x52 || val == 0x02) inVal = 2;
+                        else if (val == 0x1E || val == 0x53 || val == 0x03) inVal = 3;
+
+                        if (inVal > 0)
+                        {
+                            safeInvoke += () => OnInputChange?.Invoke(inVal);
+                        }
+                        if (active != null && active.CmdType == 11) activeCmdHandled = true;
+                    }
+                    else if (waitingForInputAck && msg.Length >= 12 && msg[10] == 0x01)
+                    {
+                        activeCmdHandled = true;
+                        ushort fbVal = active.PendingValue;
+                        safeInvoke += () => OnInputChange?.Invoke(fbVal);
+                    }
+
+                    // --- PROCESS VOLUME ---
+                    else if ((cmdCategory == 0x01 && cmdByte == 0x33 && msg.Length >= 12) ||
+                             (cmdCategory == 0x05 && msg.Length >= 12 && msg[10] == 0x01))
+                    {
+                        byte val = (cmdCategory == 0x05) ? msg[9] : msg[10];
+                        safeInvoke += () => OnVolumeChange?.Invoke(val);
+
+                        if (active != null && (active.CmdType == 12 || active.CmdType == 3)) activeCmdHandled = true;
+                    }
+
+                    // --- PROCESS MUTE ---
+                    else if (cmdCategory == 0x01 && cmdByte == 0x82 && msg.Length >= 12)
+                    {
+                        ushort isMuted = (msg[10] == 0x01) ? (ushort)1 : (ushort)0;
                         safeInvoke += () => OnMuteChange?.Invoke(isMuted);
-                    }
-                }
 
-                // --- CONSTRAINED FALLBACK ACK ---
-                else if (_activeCmd != null && !activeCmdHandled)
-                {
-                    if ((_activeCmd.CmdType == 1 && cmdCategory == 0x01) ||
-                        (_activeCmd.CmdType == 2 && cmdCategory == 0x01) ||
-                        (_activeCmd.CmdType == 3 && cmdCategory == 0x05) ||
-                        (_activeCmd.CmdType == 4 && (cmdCategory == 0x0F || cmdCategory == 0x01)))
+                        if (active != null && (active.CmdType == 13 || active.CmdType == 4))
+                            activeCmdHandled = true;
+                    }
+                    else if (waitingForMuteAck && msg.Length >= 12)
                     {
                         activeCmdHandled = true;
+
+                        if (active != null && active.CmdType == 4)
+                        {
+                            ushort isMuted = (active.CommandBytes[9] == 0x01) ? (ushort)1 : (ushort)0;
+                            safeInvoke += () => OnMuteChange?.Invoke(isMuted);
+                        }
+                    }
+
+                    // --- CONSTRAINED FALLBACK ACK ---
+                    else if (active != null && !activeCmdHandled)
+                    {
+                        if ((active.CmdType == 1 && cmdCategory == 0x01) ||
+                            (active.CmdType == 2 && cmdCategory == 0x01) ||
+                            (active.CmdType == 3 && cmdCategory == 0x05) ||
+                            (active.CmdType == 4 && (cmdCategory == 0x0F || cmdCategory == 0x01)))
+                        {
+                            activeCmdHandled = true;
+                        }
+                    }
+
+                    if (activeCmdHandled)
+                    {
+                        ClearActiveCommand(); // already holding _queueLock
                     }
                 }
-            }
-
-            if (activeCmdHandled)
-            {
-                lock (_queueLock) { ClearActiveCommand(); }
             }
 
             try { safeInvoke?.Invoke(); }
